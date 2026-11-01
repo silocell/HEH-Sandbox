@@ -199,6 +199,14 @@ function drawMake(box, base){
   }
   pp.appendChild(document.createTextNode("You have 🪙 " + INFO.pounds + "."));
   c.appendChild(pp);
+  /* Everyone gets 4 games a week (new ones and changes); it resets on Monday. */
+  var weekLeft = INFO.perWeek ? Math.max(0, INFO.perWeek - (INFO.weekUsed || 0)) : 99;
+  if (INFO.perWeek) {
+    var wk = h("p", "muted");
+    wk.appendChild(h("b", null, weekLeft + " of " + INFO.perWeek));
+    wk.appendChild(document.createTextNode(" games left this week (new games and changes both count; ones that fail don't). It resets on Monday."));
+    c.appendChild(wk);
+  }
   var l1 = h("label", "f", "Name"); l1.setAttribute("for", "gTitle"); c.appendChild(l1);
   var title = h("input"); title.type = "text"; title.id = "gTitle"; title.maxLength = 40; title.placeholder = "Asteroid Dodger";
   if (base) title.value = base.title;
@@ -223,12 +231,13 @@ function drawMake(box, base){
     pr2.appendChild(h("small", "muted", "Only you see these."));
     c.appendChild(pr2);
     api({ action:"models" }).then(function(d){
-      (d.models || []).forEach(function(m){ var o = h("option", null, "Model: " + m.name); o.value = m.id; pickM.appendChild(o); });
+      (d.models || []).filter(function(m){ return !/fable|mythos/i.test(m.id); }).forEach(function(m){ var o = h("option", null, "Model: " + m.name); o.value = m.id; pickM.appendChild(o); });
     }, function(){});
   }
   var row = h("div", "row");
   var go = h("button", "btn", price ? "Make it for 🪙 " + price : "Make it - free!"); go.type = "button";
-  go.disabled = INFO.pounds < price;
+  go.disabled = INFO.pounds < price || weekLeft < 1;
+  if (weekLeft < 1) go.textContent = "No games left this week";
   row.appendChild(go);
   if (base) { var cancel = h("button", "ghost", "Cancel"); cancel.type = "button"; cancel.onclick = function(){ TAB = "mine"; BASE = null; draw(); }; row.appendChild(cancel); }
   c.appendChild(row);
