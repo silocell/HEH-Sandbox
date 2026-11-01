@@ -186,7 +186,18 @@ function drawMake(box, base){
   }
   var price = base ? INFO.priceChange : INFO.priceNew;
   c.appendChild(h("h2", null, base ? "Change “" + base.title + "”" : "Make a new game"));
-  c.appendChild(h("p", "muted", (base ? "Say what to change. " : "") + "Costs 🪙 " + price + " Launchpad Pounds. You have 🪙 " + INFO.pounds + "."));
+  /* The price moves every hour (3-9 Pounds); the first game is free. */
+  var pp = h("p", "muted");
+  if (!base && INFO.firstFree) {
+    pp.appendChild(h("b", null, "🎁 Your first game is free! "));
+  } else {
+    pp.appendChild(document.createTextNode((base ? "Say what to change. " : "") + "Price right now: "));
+    pp.appendChild(h("b", null, "🪙 " + price + (INFO.trend === "up" ? " ▲" : INFO.trend === "down" ? " ▼" : "")));
+    var mins = Math.max(1, Math.round((new Date(INFO.nextAt).getTime() - Date.now()) / 60000));
+    pp.appendChild(document.createTextNode(" (it changes every hour, between 🪙 3 and 🪙 9 - next change in " + mins + " min). "));
+  }
+  pp.appendChild(document.createTextNode("You have 🪙 " + INFO.pounds + "."));
+  c.appendChild(pp);
   var l1 = h("label", "f", "Name"); l1.setAttribute("for", "gTitle"); c.appendChild(l1);
   var title = h("input"); title.type = "text"; title.id = "gTitle"; title.maxLength = 40; title.placeholder = "Asteroid Dodger";
   if (base) title.value = base.title;
@@ -201,7 +212,7 @@ function drawMake(box, base){
     c.appendChild(ideas);
   }
   var row = h("div", "row");
-  var go = h("button", "btn", "Make it for 🪙 " + price); go.type = "button";
+  var go = h("button", "btn", price ? "Make it for 🪙 " + price : "Make it - free!"); go.type = "button";
   go.disabled = INFO.pounds < price;
   row.appendChild(go);
   if (base) { var cancel = h("button", "ghost", "Cancel"); cancel.type = "button"; cancel.onclick = function(){ TAB = "mine"; BASE = null; draw(); }; row.appendChild(cancel); }
@@ -218,17 +229,21 @@ function drawMake(box, base){
   }
   var note = h("div", "note");
   note.appendChild(h("b", null, "How it works: "));
-  note.appendChild(document.createTextNode("First a safeguard reads your idea. If it's not OK for school - swearing (even disguised), real people, rude jokes and so on - it's blocked and you DON'T get your Pounds back; the owner checks every blocked idea. Then " + (INFO.priority && INFO.busy < INFO.atOnce ? "the best Claude for your idea builds it straight away." : INFO.model + " builds it in the slow queue, which costs half as much: usually ready within the hour.") + " You can close this page; you'll be told when it's ready. If it can't be built, you get your Pounds back. A game that gets reported and taken down means no game making for a month."));
+  note.appendChild(document.createTextNode("First a safeguard reads your idea. If it's not OK for school - swearing (even disguised), real people, rude jokes and so on - it's blocked and you DON'T get your Pounds (or your free game) back; the owner checks every blocked idea. Then " + (INFO.priority && INFO.busy < INFO.atOnce ? "the best Claude for your idea builds it straight away." : INFO.model + " builds it in the slow queue, which costs half as much: usually ready within the hour.") + " You can close this page; you'll be told when it's ready. If it can't be built, you get your Pounds back. A game that gets reported and taken down means no game making for a month."));
   c.appendChild(note);
   go.onclick = function(){
     go.disabled = true; msg.className = "msg"; msg.textContent = "Checking your idea…";
-    api({ action:"make", title:title.value, idea:idea.value, base: base ? base.id : undefined }).then(function(r){
+    api({ action:"make", title:title.value, idea:idea.value, base: base ? base.id : undefined, expect: price }).then(function(r){
       INFO.pounds = r.pounds; setBal(r.pounds);
       TAB = "mine"; BASE = null; draw();
     }).catch(function(e){
       msg.className = "msg err"; msg.textContent = e.message; go.disabled = false;
-      /* A blocked idea has been paid for: show the new balance. */
-      api({ action:"info" }).then(function(i){ INFO = i; setBal(i.pounds); }, function(){});
+      /* A blocked idea has been paid for, or the price moved: refresh both. */
+      api({ action:"info" }).then(function(i){
+        var moved = (base ? i.priceChange : i.priceNew) !== price;
+        INFO = i; setBal(i.pounds);
+        if (moved) { var keepT = title.value, keepI = idea.value; draw(); var t2 = document.getElementById("gTitle"), i2 = document.getElementById("gIdea"); if (t2) t2.value = keepT; if (i2) i2.value = keepI; }
+      }, function(){});
     });
   };
   box.appendChild(c);
