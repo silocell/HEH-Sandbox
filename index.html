@@ -161,7 +161,7 @@ function drawPlay(box){
       var b = h("button", "game"); b.type = "button";
       b.appendChild(h("span", "em", EMOJI[x.id % EMOJI.length]));
       b.appendChild(h("b", null, x.title));
-      b.appendChild(h("small", null, "by " + (x.mine ? "you" : x.by || "someone") + " · " + x.plays + " play" + (x.plays === 1 ? "" : "s")));
+      b.appendChild(h("small", null, "by " + (x.mine ? "you" : x.by || "someone") + (x.badge === "verified" ? " ✅" : x.badge === "helper" ? " 🛡️" : "") + " · " + x.plays + " play" + (x.plays === 1 ? "" : "s")));
       b.onclick = function(){ play(x.id); };
       g.appendChild(b);
     });
@@ -193,6 +193,7 @@ function drawMake(box, base){
   } else {
     pp.appendChild(document.createTextNode((base ? "Say what to change. " : "") + "Price right now: "));
     pp.appendChild(h("b", null, "🪙 " + price + (INFO.trend === "up" ? " ▲" : INFO.trend === "down" ? " ▼" : "")));
+    if (INFO.perk && !base && INFO.listPrice !== price) pp.appendChild(h("s", "muted", " 🪙 " + INFO.listPrice));
     var mins = Math.max(1, Math.round((new Date(INFO.nextAt).getTime() - Date.now()) / 60000));
     pp.appendChild(document.createTextNode(" (it changes every hour, between 🪙 3 and 🪙 9 - next change in " + mins + " min). "));
   }
@@ -219,6 +220,18 @@ function drawMake(box, base){
   c.appendChild(row);
   var msg = h("p", "msg"); c.appendChild(msg);
   if (INFO.pounds < price) { msg.className = "msg err"; msg.textContent = "You need " + (price - INFO.pounds) + " more Pounds. Earn them in the learning games (Level Up, Times Tables…) and from achievements."; }
+  if (!base && INFO.firstFree && !INFO.priority) {
+    var fp = h("div", "note"); fp.style.marginTop = "0"; fp.style.marginBottom = "12px";
+    fp.appendChild(h("b", null, "⚡ First game jumps the queue. "));
+    fp.appendChild(document.createTextNode("Your first game is built straight away by whichever Claude suits it best - ahead of everyone else, admins included."));
+    c.insertBefore(fp, c.children[1]);
+  }
+  if (INFO.perk) {
+    var pk = h("div", "note"); pk.style.marginTop = "0"; pk.style.marginBottom = "12px";
+    pk.appendChild(h("b", null, (INFO.perk === "helper" ? "🛡️ Helper" : "✅ Verified") + " perks: "));
+    pk.appendChild(document.createTextNode("🪙 " + INFO.perkOff + " off every new game (never under 3), changes to your games always 🪙 3, up to " + INFO.perkWaiting + " games in the queue at once, and a " + (INFO.perk === "helper" ? "🛡️" : "✅") + " next to your name in the library."));
+    c.insertBefore(pk, c.children[1]);
+  }
   if (INFO.priority) {
     var pr = h("div", "note"); pr.style.marginTop = "0"; pr.style.marginBottom = "12px";
     pr.appendChild(h("b", null, "⚡ You have priority. "));
