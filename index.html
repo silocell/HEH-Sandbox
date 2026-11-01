@@ -218,7 +218,7 @@ function drawMake(box, base){
   }
   var note = h("div", "note");
   note.appendChild(h("b", null, "How it works: "));
-  note.appendChild(document.createTextNode("First a safeguard reads your idea. If it's not OK for school - swearing (even disguised), real people, rude jokes and so on - it's blocked and you DON'T get your Pounds back; the owner checks every blocked idea. Then " + INFO.model + " builds it in the slow queue, which costs half as much: usually ready within the hour. You can close this page; you'll be told when it's ready. If it can't be built, you get your Pounds back. A game that gets reported and taken down means no game making for a month."));
+  note.appendChild(document.createTextNode("First a safeguard reads your idea. If it's not OK for school - swearing (even disguised), real people, rude jokes and so on - it's blocked and you DON'T get your Pounds back; the owner checks every blocked idea. Then " + (INFO.priority && INFO.busy < INFO.atOnce ? "the best Claude for your idea builds it straight away." : INFO.model + " builds it in the slow queue, which costs half as much: usually ready within the hour.") + " You can close this page; you'll be told when it's ready. If it can't be built, you get your Pounds back. A game that gets reported and taken down means no game making for a month."));
   c.appendChild(note);
   go.onclick = function(){
     go.disabled = true; msg.className = "msg"; msg.textContent = "Checking your idea…";
