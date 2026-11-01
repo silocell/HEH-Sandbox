@@ -136,14 +136,14 @@ function draw(){
   head.appendChild(h("p", "muted", "Describe a game and Claude makes it for you. Then everyone on the Launchpad can play it."));
   main.appendChild(head);
   var tabs = h("div", "tabs");
-  [["play", "▶ Play"], ["make", "✨ Make a game"], ["mine", "📁 My games"]].forEach(function(t){
+  [["play", "▶ Play"], ["make", "✨ Make a game"], ["mine", "📁 My games"], ["images", "🎨 Images"]].forEach(function(t){
     var b = h("button", "tab", t[1]); b.type = "button"; b.setAttribute("aria-selected", TAB === t[0] ? "true" : "false");
     b.onclick = function(){ TAB = t[0]; BASE = null; draw(); }; tabs.appendChild(b);
   });
   main.appendChild(tabs);
   var box = h("div"); main.appendChild(box);
   if (poll) { clearInterval(poll); poll = null; }
-  if (TAB === "play") drawPlay(box); else if (TAB === "make") drawMake(box, BASE); else drawMine(box);
+  if (TAB === "play") drawPlay(box); else if (TAB === "make") drawMake(box, BASE); else if (TAB === "images") drawImages(box); else drawMine(box);
 }
 
 function drawPlay(box){
@@ -328,7 +328,8 @@ function play(id){
   }).catch(function(e){ alertMsg(e.message); });
 }
 
-function report(g){
+function report(g, kind){
+  kind = kind || "game";
   var s = h("div", "sheet"), c = h("div", "card");
   c.appendChild(h("h2", null, "Report “" + g.title + "”"));
   c.appendChild(h("p", "muted", "The owner and helpers will look at it. " + (g.by || "The maker") + " won't be told who reported it."));
@@ -346,13 +347,120 @@ function report(g){
   var msg = h("p", "msg"); c.appendChild(msg);
   send.onclick = function(){
     send.disabled = true;
-    sb.functions.invoke("report", { body:{ action:"report", kind:"game", id:String(g.id), reason:pick, note:note.value } }).then(function(r){
+    sb.functions.invoke("report", { body:{ action:"report", kind:kind, id:String(g.id), reason:pick, note:note.value } }).then(function(r){
       var d = r.data || {};
       if (r.error || d.error) { msg.className = "msg err"; msg.textContent = d.error || "Couldn't send that - try again."; send.disabled = false; return; }
       msg.className = "msg ok"; msg.textContent = "Thanks - it's been sent."; setTimeout(function(){ s.remove(); }, 1400);
     });
   };
   s.appendChild(c); document.body.appendChild(s);
+}
+
+/* ---------------- the Image Maker ----------------
+   Google's Imagen draws it (with SynthID inside); the server stamps the
+   Launchpad mark in the corner. Private unless you share it. */
+function iapi(body){
+  return sb.functions.invoke("imagemaker", { body: body }).then(function(r){
+    if (r.error) {
+      var ctx = r.error.context;
+      if (ctx && ctx.json) return ctx.json().then(function(j){ throw new Error(j && j.error || "Couldn't reach the Image Maker."); }, function(){ throw new Error("Couldn't reach the Image Maker."); });
+      throw new Error("Couldn't reach the Image Maker.");
+    }
+    if (r.data && r.data.error) throw new Error(r.data.error);
+    return r.data;
+  });
+}
+var IMGVIEW = "mine";
+function drawImages(box){
+  box.appendChild(h("p", "muted", "Loading…"));
+  iapi({ action:"info" }).then(function(I){
+    box.textContent = "";
+    var c = h("div", "card");
+    c.appendChild(h("h2", null, "🎨 Draw a picture"));
+    if (!I.on) { c.appendChild(h("p", "muted", "The Image Maker is nearly ready - check back soon.")); box.appendChild(c); return; }
+    var info = h("p", "muted");
+    info.appendChild(document.createTextNode("Each picture costs "));
+    info.appendChild(h("b", null, I.price + "p"));
+    if (I.perk && I.price !== I.fullPrice) info.appendChild(h("s", "muted", " " + I.fullPrice + "p"));
+    info.appendChild(document.createTextNode(" · " + (I.limit - I.used) + " of " + I.limit + " left today · you have " + I.pence + "p."));
+    c.appendChild(info);
+    if (I.perk) { var pk = h("div", "note"); pk.style.margin = "0 0 10px"; pk.textContent = (I.badge === "helper" ? "🛡️ Helper" : I.badge === "verified" ? "✅ Verified" : "⚡ Priority") + " perks: half price and " + I.limit + " pictures a day."; c.appendChild(pk); }
+    var ta = h("textarea"); ta.maxLength = 400; ta.placeholder = "A fox astronaut planting flowers on the moon, cartoon style"; ta.style.minHeight = "80px";
+    c.appendChild(ta);
+    var row = h("div", "row"); var go = h("button", "btn", "Draw it for " + I.price + "p"); go.type = "button";
+    go.disabled = I.pence < I.price || I.used >= I.limit; row.appendChild(go); c.appendChild(row);
+    var msg = h("p", "msg"); c.appendChild(msg);
+    var out = h("div"); c.appendChild(out);
+    var note = h("div", "note"); note.appendChild(h("b", null, "Good to know: "));
+    note.appendChild(document.createTextNode("Pictures never show people. Every picture has Google's invisible SynthID watermark and the Homework Launchpad mark in the corner. Only you can see your pictures unless you press Share. If a picture can't be drawn, you get your pence back."));
+    c.appendChild(note);
+    go.onclick = function(){
+      go.disabled = true; msg.className = "msg"; msg.textContent = "Drawing… (about 10 seconds)"; out.textContent = "";
+      iapi({ action:"make", prompt:ta.value, expect:I.price }).then(function(r){
+        msg.textContent = ""; I.used++; I.pence = r.pence;
+        showImage(out, { id:r.id, jpeg:r.jpeg, prompt:ta.value, mine:true, shared:false });
+        go.disabled = I.pence < I.price || I.used >= I.limit; refreshList();
+      }).catch(function(e){ msg.className = "msg err"; msg.textContent = e.message; go.disabled = false; });
+    };
+    box.appendChild(c);
+    var tabs2 = h("div", "tabs"); tabs2.style.marginTop = "18px";
+    var listBox = h("div", "grid");
+    [["mine", "My pictures"], ["shared", "Shared by everyone"]].forEach(function(t){
+      var b = h("button", "tab", t[1]); b.type = "button"; b.setAttribute("aria-selected", IMGVIEW === t[0] ? "true" : "false");
+      b.onclick = function(){ IMGVIEW = t[0]; [].forEach.call(tabs2.children, function(x){ x.setAttribute("aria-selected", x === b ? "true" : "false"); }); refreshList(); };
+      tabs2.appendChild(b);
+    });
+    box.appendChild(tabs2); box.appendChild(listBox);
+    function refreshList(){
+      listBox.textContent = "";
+      iapi({ action: IMGVIEW === "mine" ? "mine" : "shared" }).then(function(d){
+        if (!d.images.length) { listBox.appendChild(h("p", "muted", IMGVIEW === "mine" ? "No pictures yet." : "Nobody has shared a picture yet.")); return; }
+        d.images.forEach(function(x){
+          var b = h("button", "game"); b.type = "button";
+          b.appendChild(h("span", "em", "🖼️"));
+          b.appendChild(h("b", null, (x.prompt || x.body || "").slice(0, 60)));
+          b.appendChild(h("small", null, IMGVIEW === "mine" ? (x.shared ? "Shared" : "Private") : "by " + (x.mine ? "you" : x.by || "someone") + (x.badge === "verified" ? " ✅" : x.badge === "helper" ? " 🛡️" : "")));
+          b.onclick = function(){ openImage(x.id); };
+          listBox.appendChild(b);
+        });
+      }).catch(function(e){ listBox.appendChild(h("p", "msg err", e.message)); });
+    }
+    refreshList();
+  }).catch(function(e){ box.textContent = ""; box.appendChild(h("p", "msg err", e.message)); });
+}
+function showImage(host, i){
+  host.textContent = "";
+  var im = h("img"); im.src = "data:image/jpeg;base64," + i.jpeg; im.alt = i.prompt || "Picture";
+  im.style.cssText = "width:100%;max-width:512px;border-radius:14px;display:block;margin-top:12px";
+  host.appendChild(im);
+  var row = h("div", "row");
+  var dl = h("a", "ghost", "⬇ Download"); dl.href = im.src; dl.download = "launchpad-picture-" + i.id + ".jpg"; dl.style.textDecoration = "none"; row.appendChild(dl);
+  if (i.mine) {
+    var sh = h("button", "ghost", i.shared ? "Stop sharing" : "🌍 Share with everyone"); sh.type = "button";
+    sh.onclick = function(){ sh.disabled = true; iapi({ action:"share", id:i.id, on:!i.shared }).then(function(){ i.shared = !i.shared; sh.textContent = i.shared ? "Stop sharing" : "🌍 Share with everyone"; sh.disabled = false; }).catch(function(e){ alertMsg(e.message); sh.disabled = false; }); };
+    row.appendChild(sh);
+    var del = h("button", "ghost", "Delete"); del.type = "button";
+    del.onclick = function(){
+      if (del.dataset.armed !== "1") { del.dataset.armed = "1"; del.textContent = "Sure? Delete"; setTimeout(function(){ del.dataset.armed = ""; del.textContent = "Delete"; }, 4000); return; }
+      iapi({ action:"delete", id:i.id }).then(function(){ host.textContent = ""; var v = document.querySelector(".veil"); if (v) v.remove(); draw(); });
+    };
+    row.appendChild(del);
+  } else {
+    var rp = h("button", "ghost", "⚑ Report"); rp.type = "button"; rp.onclick = function(){ report({ id:i.id, title:"this picture", by:i.by }, "image"); }; row.appendChild(rp);
+  }
+  host.appendChild(row);
+}
+function openImage(id){
+  iapi({ action:"get", id:id }).then(function(i){
+    var s = h("div", "sheet"), c = h("div", "card"); c.style.width = "min(560px,100%)";
+    var top = h("div", "row"); top.style.marginTop = "0";
+    top.appendChild(h("b", null, i.mine ? "Your picture" : "By " + (i.by || "someone"))); top.appendChild(h("span", "sp"));
+    var x = h("button", "ghost", "✕ Close"); x.type = "button"; x.onclick = function(){ s.remove(); }; top.appendChild(x);
+    c.appendChild(top); c.appendChild(h("p", "muted", i.prompt));
+    var host = h("div"); c.appendChild(host); showImage(host, i);
+    s.appendChild(c); s.onclick = function(e){ if (e.target === s) s.remove(); };
+    document.body.appendChild(s);
+  }).catch(function(e){ alertMsg(e.message); });
 }
 
 /* ---------------- start ---------------- */
@@ -362,6 +470,8 @@ function start(){
     draw();
     var m = location.hash.match(/play=(\d+)/);
     if (m) play(Number(m[1]));
+    var mi = location.hash.match(/img=(\d+)/);
+    if (mi) { TAB = "images"; draw(); openImage(Number(mi[1])); }
   }).catch(function(e){ main.textContent = ""; main.appendChild(h("p", "msg err", e.message)); });
 }
 if (!sb) { main.textContent = "Couldn't load. Check your connection and refresh."; }
