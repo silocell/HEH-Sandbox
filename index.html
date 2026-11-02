@@ -273,6 +273,7 @@ function drawMake(box, base){
     api({ action:"make", title:title.value, idea:idea.value, base: base ? base.id : undefined, expect: price,
           model: pickM ? pickM.value : undefined, effort: pickE ? pickE.value : undefined }).then(function(r){
       INFO.pounds = r.pounds; setBal(r.pounds);
+      SAY = r.message || "";
       TAB = "mine"; BASE = null; draw();
       /* The first-free game, the price and this week's count have all moved. */
       api({ action:"info" }).then(function(i){ INFO = i; setBal(i.pounds); }, function(){});
@@ -290,11 +291,13 @@ function drawMake(box, base){
   box.appendChild(c);
 }
 
+var SAY = "";   /* a message for the top of My games, e.g. "this one's big, it'll take longer" */
 function drawMine(box){
   box.appendChild(h("p", "muted", "Loading your games…"));
   function load(){
     return api({ action:"mine" }).then(function(d){
       box.textContent = "";
+      if (SAY) { box.appendChild(h("div", "note", "\u23f3 " + SAY)); SAY = ""; }
       if (d.banned) { var bn = h("div", "note banned", "Making games is off for you until " + untilText(d.banned) + ", because a game of yours was taken down after a report."); box.appendChild(bn); }
       if (!d.games.length) { box.appendChild(h("p", "muted", "You haven't made any games yet.")); return; }
       var list = h("div", "mine"), waiting = false;
@@ -302,7 +305,7 @@ function drawMine(box){
         var r = h("div", "mrow");
         r.appendChild(h("span", "st " + g.status, g.status === "queued" ? "Being made…" : g.status === "building" ? "⚡ Building now" : g.status === "done" ? "Ready" : g.status === "blocked" ? (g.review === "upheld" ? "Blocked" : "Blocked · being checked") : "Didn't work"));
         var w = h("div", "what"); w.appendChild(h("b", null, g.title));
-        w.appendChild(h("div", "muted", g.status === "building" ? "Priority: being built right now" + (g.model ? " by Claude " + g.model.replace("claude-", "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, function(c){ return c.toUpperCase(); }) : "") + ". Usually a few minutes." : g.status === "queued" ? "Started " + ago(g.created_at) + ". Usually ready within the hour." :
+        w.appendChild(h("div", "muted", g.status === "building" ? "Priority: being built right now" + (g.model ? " by Claude " + g.model.replace("claude-", "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, function(c){ return c.toUpperCase(); }) : "") + ". Usually a few minutes." : g.status === "queued" ? (g.note ? g.note + " Started " + ago(g.created_at) + "." : "Started " + ago(g.created_at) + ". Usually ready within the hour.") :
           g.status === "failed" || g.status === "blocked" ? (g.note || "It couldn't be made.") : g.plays + " play" + (g.plays === 1 ? "" : "s") + " by others"));
         r.appendChild(w);
         if (g.status === "queued" || g.status === "building") waiting = true;
