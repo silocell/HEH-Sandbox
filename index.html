@@ -273,13 +273,16 @@ function drawMake(box, base){
           model: pickM ? pickM.value : undefined, effort: pickE ? pickE.value : undefined }).then(function(r){
       INFO.pounds = r.pounds; setBal(r.pounds);
       TAB = "mine"; BASE = null; draw();
+      /* The first-free game, the price and this week's count have all moved. */
+      api({ action:"info" }).then(function(i){ INFO = i; setBal(i.pounds); }, function(){});
     }).catch(function(e){
       msg.className = "msg err"; msg.textContent = e.message; go.disabled = false;
       /* A blocked idea has been paid for, or the price moved: refresh both. */
       api({ action:"info" }).then(function(i){
         var moved = (base ? i.priceChange : i.priceNew) !== price;
         INFO = i; setBal(i.pounds);
-        if (moved) { var keepT = title.value, keepI = idea.value; draw(); var t2 = document.getElementById("gTitle"), i2 = document.getElementById("gIdea"); if (t2) t2.value = keepT; if (i2) i2.value = keepI; }
+        if (moved) { var keepT = title.value, keepI = idea.value, keepM = e.message; draw(); var t2 = document.getElementById("gTitle"), i2 = document.getElementById("gIdea"); if (t2) t2.value = keepT; if (i2) i2.value = keepI;
+          var m2 = document.querySelector("#main .msg"); if (m2) { m2.className = "msg err"; m2.textContent = keepM; } }
       }, function(){});
     });
   };
