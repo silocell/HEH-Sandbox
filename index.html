@@ -128,6 +128,22 @@ function ago(t){
   var s = (Date.now() - new Date(t).getTime()) / 1000;
   return s < 90 ? "just now" : s < 5400 ? Math.round(s / 60) + " min ago" : s < 129600 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " days ago";
 }
+/* How long a game should take, and when it should be ready.
+   Instant builds: a few minutes by model (a big one up to ~45).
+   Slow builds go through Claude's queue: usually within the hour. */
+function eta(g){
+  var start = new Date(g.created_at).getTime(), slow = g.status === "queued";
+  var m = /haiku/.test(g.model || "") ? 2 : /opus/.test(g.model || "") ? 8 : 4;
+  var big = g.note && /big game/i.test(g.note);
+  var mins = slow ? 60 : big ? 40 : m;
+  var at = start + mins * 60000, left = Math.round((at - Date.now()) / 60000);
+  var clock = new Date(at).toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
+  var kind = slow ? "\ud83d\udc22 Slow build (Claude's queue)" : "\u26a1 Instant build" + (g.model ? " by Claude " + g.model.replace("claude-", "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, function(c){ return c.toUpperCase(); }) : "");
+  var when = left > 1 ? "about " + left + " min left - ready by about " + clock
+           : left > -10 ? "almost done - any minute now"
+           : slow ? "taking longer than usual (the queue can take up to a day)" : "taking longer than usual - if it runs out of time it moves to the queue";
+  return kind + " \u00b7 takes " + (slow ? "up to an hour" : big ? "30-45 minutes" : "about " + m + " minutes") + " \u00b7 " + when + ".";
+}
 function untilText(t){ return new Date(t).toLocaleDateString("en-GB", { day:"numeric", month:"long" }); }
 
 /* ---------------- tabs ---------------- */
@@ -305,7 +321,7 @@ function drawMine(box){
         var r = h("div", "mrow");
         r.appendChild(h("span", "st " + g.status, g.status === "queued" ? "Being made…" : g.status === "building" ? "⚡ Building now" : g.status === "done" ? "Ready" : g.status === "blocked" ? (g.review === "upheld" ? "Blocked" : "Blocked · being checked") : "Didn't work"));
         var w = h("div", "what"); w.appendChild(h("b", null, g.title));
-        w.appendChild(h("div", "muted", g.status === "building" && g.note ? g.note : g.status === "building" ? "Priority: being built right now" + (g.model ? " by Claude " + g.model.replace("claude-", "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, function(c){ return c.toUpperCase(); }) : "") + ". Usually a few minutes." : g.status === "queued" ? (g.note ? g.note + " Started " + ago(g.created_at) + "." : "Started " + ago(g.created_at) + ". Usually ready within the hour.") :
+        w.appendChild(h("div", "muted", g.status === "building" || g.status === "queued" ? eta(g) :
           g.status === "failed" || g.status === "blocked" ? (g.note || "It couldn't be made.") : g.plays + " play" + (g.plays === 1 ? "" : "s") + " by others"));
         r.appendChild(w);
         if (g.status === "queued" || g.status === "building") waiting = true;
