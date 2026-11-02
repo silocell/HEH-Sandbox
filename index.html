@@ -68,6 +68,11 @@ textarea{min-height:140px;resize:vertical}
 .st.building{background:color-mix(in srgb,var(--a2) 18%,transparent);color:var(--a2)}
 .st.blocked{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
 .st.failed{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+.tier{text-align:left;border:1px solid var(--rule);background:var(--bg);color:var(--ink);border-radius:14px;padding:10px 12px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:2px}
+.tier small{color:var(--soft,#9aa3c7);font-size:.8rem}
+.tier.on{border-color:var(--a1);box-shadow:0 0 0 2px color-mix(in srgb,var(--a1) 40%,transparent)}
+.tier[disabled]{opacity:.5;cursor:default}
 .note{background:color-mix(in srgb,var(--a1) 8%,var(--card));border:1px solid var(--rule);border-radius:14px;padding:12px 14px;font-size:.92rem;margin-top:14px}
 .banned{background:color-mix(in srgb,var(--bad) 10%,var(--card));border-color:color-mix(in srgb,var(--bad) 40%,var(--rule))}
 /* the player */
@@ -214,7 +219,7 @@ function drawMake(box, base){
     var mins = Math.max(1, Math.round((new Date(INFO.nextAt).getTime() - Date.now()) / 60000));
     pp.appendChild(document.createTextNode(" (it changes every hour, between 🪙 3 and 🪙 9 - next change in " + mins + " min). "));
   }
-  pp.appendChild(document.createTextNode("You have 🪙 " + INFO.pounds + "."));
+  pp.appendChild(document.createTextNode("You have 🪙 " + INFO.pounds + (INFO.pence !== undefined ? " and " + INFO.pence + "p" : "") + "."));
   c.appendChild(pp);
   /* Everyone gets 4 games a week (new ones and changes); it resets on Monday. */
   var weekLeft = INFO.perWeek ? Math.max(0, INFO.perWeek - (INFO.weekUsed || 0)) : 99;
@@ -251,15 +256,52 @@ function drawMake(box, base){
       (d.models || []).filter(function(m){ return !/fable|mythos/i.test(m.id); }).forEach(function(m){ var o = h("option", null, "Model: " + m.name); o.value = m.id; pickM.appendChild(o); });
     }, function(){});
   }
+  /* Quality: Quick (Haiku) costs pence, Better (Sonnet) costs Pounds,
+     Best (Opus) is for helpers, admins and Verified accounts. */
+  var TIERS = INFO.pencePrice !== undefined, TIER = "better";
+  function costOf(t){
+    if (t === "quick") return (!base && INFO.firstFree) ? 0 : INFO.pencePrice;
+    var p0 = base ? INFO.priceChange : INFO.priceNew;
+    return t === "best" && p0 > 0 ? p0 + (INFO.opusExtra || 0) : p0;
+  }
+  function priceText(t){ var c0 = costOf(t); return !c0 ? "free" : t === "quick" ? c0 + "p" : "🪙 " + c0; }
+  function haveOf(t){ return t === "quick" ? (INFO.pence || 0) : INFO.pounds; }
+  if (TIERS) {
+    c.appendChild(h("label", "f", "Quality"));
+    var tg = h("div", "tiers");
+    [["quick", "⚡ Quick", "Claude Haiku · simple games · paid in pence"],
+     ["better", "✨ Better", "Claude Sonnet · most games · paid in Pounds"],
+     ["best", "🏆 Best", INFO.priority ? "Claude Opus · big or tricky games" : "Claude Opus · helpers, admins and Verified only"]].forEach(function(t){
+      var b = h("button", "tier"); b.type = "button"; b.setAttribute("data-t", t[0]);
+      b.appendChild(h("b", null, t[1])); b.appendChild(h("span", "tp", "")); b.appendChild(h("small", null, t[2]));
+      if (t[0] === "best" && !INFO.priority) b.disabled = true;
+      b.onclick = function(){ TIER = t[0]; update(); };
+      tg.appendChild(b);
+    });
+    c.appendChild(tg);
+  }
   var row = h("div", "row");
-  var go = h("button", "btn", price ? "Make it for 🪙 " + price : "Make it - free!"); go.type = "button";
-  go.disabled = INFO.pounds < price || weekLeft < 1;
-  if (weekLeft < 1) go.textContent = "No games left this week";
+  var go = h("button", "btn", ""); go.type = "button";
   row.appendChild(go);
   if (base) { var cancel = h("button", "ghost", "Cancel"); cancel.type = "button"; cancel.onclick = function(){ TAB = "mine"; BASE = null; draw(); }; row.appendChild(cancel); }
   c.appendChild(row);
   var msg = h("p", "msg"); c.appendChild(msg);
-  if (INFO.pounds < price) { msg.className = "msg err"; msg.textContent = "You need " + (price - INFO.pounds) + " more Pounds. Earn them in the learning games (Level Up, Times Tables…) and from achievements."; }
+  function update(){
+    price = TIERS ? costOf(TIER) : price;
+    var pt = TIERS ? priceText(TIER) : (price ? "🪙 " + price : "free");
+    go.textContent = weekLeft < 1 ? "No games left this week" : price ? "Make it for " + pt : "Make it - free!";
+    var short = haveOf(TIERS ? TIER : "better") < price;
+    go.disabled = short || weekLeft < 1;
+    msg.className = "msg"; msg.textContent = "";
+    if (short) { msg.className = "msg err"; msg.textContent = TIERS && TIER === "quick"
+      ? "You need " + (price - (INFO.pence || 0)) + "p more. You get 1p for every right answer in the learning games."
+      : "You need " + (price - INFO.pounds) + " more Pounds. Earn them in the learning games (Level Up, Times Tables…) and from achievements."; }
+    Array.prototype.forEach.call(c.querySelectorAll(".tier"), function(b){
+      var t = b.getAttribute("data-t"); b.classList.toggle("on", t === TIER);
+      b.querySelector(".tp").textContent = " " + priceText(t);
+    });
+  }
+  update();
   if (!base && INFO.firstFree && !INFO.priority) {
     var fp = h("div", "note"); fp.style.marginTop = "0"; fp.style.marginBottom = "12px";
     fp.appendChild(h("b", null, "⚡ First game jumps the queue. "));
@@ -287,7 +329,7 @@ function drawMake(box, base){
   go.onclick = function(){
     go.disabled = true; msg.className = "msg"; msg.textContent = "Checking your idea…";
     api({ action:"make", title:title.value, idea:idea.value, base: base ? base.id : undefined, expect: price,
-          model: pickM ? pickM.value : undefined, effort: pickE ? pickE.value : undefined }).then(function(r){
+          model: pickM ? pickM.value : undefined, effort: pickE ? pickE.value : undefined, tier: TIERS ? TIER : undefined }).then(function(r){
       INFO.pounds = r.pounds; setBal(r.pounds);
       SAY = r.message || "";
       TAB = "mine"; BASE = null; draw();
