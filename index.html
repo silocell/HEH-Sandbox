@@ -348,7 +348,24 @@ function play(id){
     f.setAttribute("allow", "autoplay");
     /* The lock goes first, but after the game's <!DOCTYPE html>: in front of
        it, the doctype would be ignored and the game drawn in "quirks" mode. */
-    function load(){ var m = /^\s*<!doctype[^>]*>/i.exec(g.html); f.srcdoc = m ? m[0] + CSP + g.html.slice(m[0].length) : CSP + g.html; }
+    /* The lock can't stop a game sending its own frame to another address
+       (a fake sign-in page, say - the policy goes with the game's page).
+       Each load() causes exactly one load event; any other one means the
+       game reloaded itself (a "play again" button often does) or went
+       somewhere else. Either way it is put back to the game itself - and
+       if that keeps happening, it is stopped. */
+    var ours = 0, left = false, bounces = [];
+    function put(){ ours++; var m = /^\s*<!doctype[^>]*>/i.exec(g.html); f.srcdoc = m ? m[0] + CSP + g.html.slice(m[0].length) : CSP + g.html; }
+    function load(){ left = false; bounces = []; put(); }
+    f.addEventListener("load", function(){
+      if (ours > 0) { ours--; return; }
+      if (left) return;
+      var now = Date.now();
+      bounces = bounces.filter(function(t){ return now - t < 10000; }); bounces.push(now);
+      if (bounces.length < 3) { put(); return; }
+      left = true; ours++;
+      f.srcdoc = CSP + "<body style='font:16px system-ui;padding:24px;text-align:center'><p>This game kept trying to leave the page, so it was stopped.</p><p>Press Restart to try again.</p></body>";
+    });
     load(); again.onclick = load;
     function close(){ v.remove(); document.removeEventListener("keydown", esc); if (location.hash) history.replaceState(null, "", location.pathname); }
     function esc(e){ if (e.key === "Escape" && document.activeElement !== f) close(); }
