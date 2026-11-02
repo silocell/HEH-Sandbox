@@ -305,7 +305,7 @@ function drawMine(box){
         var r = h("div", "mrow");
         r.appendChild(h("span", "st " + g.status, g.status === "queued" ? "Being made…" : g.status === "building" ? "⚡ Building now" : g.status === "done" ? "Ready" : g.status === "blocked" ? (g.review === "upheld" ? "Blocked" : "Blocked · being checked") : "Didn't work"));
         var w = h("div", "what"); w.appendChild(h("b", null, g.title));
-        w.appendChild(h("div", "muted", g.status === "building" ? "Priority: being built right now" + (g.model ? " by Claude " + g.model.replace("claude-", "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, function(c){ return c.toUpperCase(); }) : "") + ". Usually a few minutes." : g.status === "queued" ? (g.note ? g.note + " Started " + ago(g.created_at) + "." : "Started " + ago(g.created_at) + ". Usually ready within the hour.") :
+        w.appendChild(h("div", "muted", g.status === "building" && g.note ? g.note : g.status === "building" ? "Priority: being built right now" + (g.model ? " by Claude " + g.model.replace("claude-", "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, function(c){ return c.toUpperCase(); }) : "") + ". Usually a few minutes." : g.status === "queued" ? (g.note ? g.note + " Started " + ago(g.created_at) + "." : "Started " + ago(g.created_at) + ". Usually ready within the hour.") :
           g.status === "failed" || g.status === "blocked" ? (g.note || "It couldn't be made.") : g.plays + " play" + (g.plays === 1 ? "" : "s") + " by others"));
         r.appendChild(w);
         if (g.status === "queued" || g.status === "building") waiting = true;
