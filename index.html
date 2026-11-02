@@ -345,7 +345,9 @@ function play(id){
     var x = h("button", null, "✕ Close"); x.type = "button"; bar.appendChild(x);
     var f = h("iframe"); f.setAttribute("sandbox", "allow-scripts"); f.setAttribute("title", g.title);
     f.setAttribute("allow", "autoplay");
-    function load(){ f.srcdoc = CSP + g.html; }
+    /* The lock goes first, but after the game's <!DOCTYPE html>: in front of
+       it, the doctype would be ignored and the game drawn in "quirks" mode. */
+    function load(){ var m = /^\s*<!doctype[^>]*>/i.exec(g.html); f.srcdoc = m ? m[0] + CSP + g.html.slice(m[0].length) : CSP + g.html; }
     load(); again.onclick = load;
     function close(){ v.remove(); document.removeEventListener("keydown", esc); if (location.hash) history.replaceState(null, "", location.pathname); }
     function esc(e){ if (e.key === "Escape" && document.activeElement !== f) close(); }
