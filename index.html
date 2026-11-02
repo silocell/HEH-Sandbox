@@ -370,6 +370,28 @@ function drawMine(box){
         if (g.status === "done") {
           var p = h("button", "btn", "▶ Play"); p.type = "button"; p.onclick = function(){ play(g.id); }; r.appendChild(p);
           var ch = h("button", "ghost", "Change it"); ch.type = "button"; ch.onclick = function(){ TAB = "make"; BASE = g; draw(); }; r.appendChild(ch);
+          /* Download it as an app: costs Pounds the first time, then free. */
+          if (INFO && INFO.exportPrice !== undefined) [["exe", "⬇ Windows"], ["apk", "⬇ Android"]].forEach(function(k){
+            var b = h("button", "ghost", k[1]); b.type = "button"; b.title = "Download this game as a " + (k[0] === "exe" ? "Windows app (.exe)" : "Android app (.apk)");
+            b.onclick = function(){
+              if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Get it for 🪙 " + INFO.exportPrice + "? (free if bought before)"; setTimeout(function(){ b.dataset.armed = ""; b.textContent = k[1]; }, 5000); return; }
+              b.disabled = true; b.textContent = "Making it…";
+              api({ action:"export", id:g.id, kind:k[0] }).then(function(r){
+                var bin = atob(r.file), u8 = new Uint8Array(bin.length);
+                for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+                var url = URL.createObjectURL(new Blob([u8], { type: "application/octet-stream" }));
+                var a2 = document.createElement("a"); a2.href = url; a2.download = r.name; document.body.appendChild(a2); a2.click(); a2.remove();
+                setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+                if (typeof r.pounds === "number") { INFO.pounds = r.pounds; setBal(r.pounds); }
+                b.disabled = false; b.dataset.armed = ""; b.textContent = "✓ Downloaded";
+                SAY = k[0] === "exe" ? "Downloaded " + r.name + ". On Windows, if a blue box says \u201cWindows protected your PC\u201d, press More info, then Run anyway."
+                                     : "Downloaded " + r.name + ". On Android, open it from Downloads and allow installing from this browser. Every game you download goes into one Launchpad Games app.";
+                var top = box.querySelector(".note.dl"); if (top) top.remove();
+                var n = h("div", "note dl", SAY); SAY = ""; box.insertBefore(n, box.firstChild);
+              }).catch(function(e){ b.disabled = false; b.dataset.armed = ""; b.textContent = k[1]; alertMsg(e.message); });
+            };
+            r.appendChild(b);
+          });
         }
         if (g.status === "done" || g.status === "failed") {
           var del = h("button", "ghost", "Delete"); del.type = "button";
