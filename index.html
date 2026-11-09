@@ -614,7 +614,18 @@ else sb.auth.getSession().then(function(r){
     var a = h("a", "btn", "Sign in"); a.href = "https://civilinitiatives.org/"; a.style.textDecoration = "none"; a.style.display = "inline-block";
     c.appendChild(a); main.appendChild(c); return;
   }
-  start();
+  /* the Game Maker can be switched off (for everyone, or for one person) by the Launchpad's admins */
+  sb.rpc("my_features").then(function(fr){ return fr && !fr.error && fr.data ? fr.data : { gamemaker:true }; }, function(){ return { gamemaker:true }; }).then(function(ft){
+    if (ft.gamemaker === false) {
+      main.textContent = "";
+      var c = h("div", "card");
+      c.appendChild(h("h1", null, "🎮 Game Maker"));
+      c.appendChild(h("p", "muted", "The Game Maker is switched off for your account just now."));
+      var a = h("a", "btn", "Back to the Launchpad"); a.href = "https://civilinitiatives.org/"; a.style.textDecoration = "none"; a.style.display = "inline-block";
+      c.appendChild(a); main.appendChild(c); return;
+    }
+    start();
+  });
 });
 })();
 </script>
