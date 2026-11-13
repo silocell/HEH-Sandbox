@@ -621,7 +621,7 @@ else sb.auth.getSession().then(function(r){
       main.textContent = "";
       var c = h("div", "card");
       c.appendChild(h("h1", null, "🎮 Game Maker"));
-      c.appendChild(h("p", "muted", ft.school ? "The Game Maker isn't available on the school's network - it'll be here when you're home." : "The Game Maker is switched off for your account just now."));
+      c.appendChild(h("p", "muted", (ft.school_off || []).indexOf("gamemaker") >= 0 ? "The Game Maker isn't available on the school's network - it'll be here when you're home." : "The Game Maker is switched off for your account just now."));
       var a = h("a", "btn", "Back to the Launchpad"); a.href = "https://civilinitiatives.org/"; a.style.textDecoration = "none"; a.style.display = "inline-block";
       c.appendChild(a); main.appendChild(c); return;
     }
