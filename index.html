@@ -129,7 +129,7 @@ function api(body){
     return r.data;
   });
 }
-function setBal(n){ document.getElementById("bal").hidden = false; document.getElementById("balN").textContent = n; }
+function setBal(n){ document.getElementById("bal").hidden = false; document.getElementById("balN").textContent = Number(n || 0).toLocaleString("en-GB"); }
 function ago(t){
   var s = (Date.now() - new Date(t).getTime()) / 1000;
   return s < 90 ? "just now" : s < 5400 ? Math.round(s / 60) + " min ago" : s < 129600 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " days ago";
@@ -220,7 +220,7 @@ function drawMake(box, base){
     var mins = Math.max(1, Math.round((new Date(INFO.nextAt).getTime() - Date.now()) / 60000));
     pp.appendChild(document.createTextNode(" (it changes every hour, between 🪙 3 and 🪙 9 - next change in " + mins + " min). "));
   }
-  pp.appendChild(document.createTextNode("You have 🪙 " + INFO.pounds + (INFO.pence !== undefined ? " and " + INFO.pence + "p" : "") + "."));
+  pp.appendChild(document.createTextNode("You have 🪙 " + Number(INFO.pounds || 0).toLocaleString("en-GB") + (INFO.pence !== undefined ? " and " + Number(INFO.pence || 0).toLocaleString("en-GB") + "p" : "") + "."));
   c.appendChild(pp);
   /* Everyone gets 4 games a week (new ones and changes); it resets on Monday. */
   var weekLeft = INFO.perWeek ? Math.max(0, INFO.perWeek - (INFO.weekUsed || 0)) : 99;
