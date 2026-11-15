@@ -260,6 +260,11 @@ function drawMake(box, base){
   /* Quality: Quick (Haiku) costs pence, Better (Sonnet) costs Pounds,
      Best (Opus) is for helpers, admins and Verified accounts. */
   var TIERS = INFO.pencePrice !== undefined, TIER = "better";
+  /* Everyone can pick Best once the server says the safeguard (Groq) checks
+     whether an idea really needs Opus. If it doesn't, Sonnet builds it and
+     only the Better price is taken - the server's message says so. Until the
+     server sends opusCheck, Best stays for helpers, admins and Verified. */
+  var OPUS_CHECK = !!INFO.opusCheck;
   function costOf(t){
     if (t === "quick") return (!base && INFO.firstFree) ? 0 : INFO.pencePrice;
     var p0 = base ? INFO.priceChange : INFO.priceNew;
@@ -272,10 +277,11 @@ function drawMake(box, base){
     var tg = h("div", "tiers");
     [["quick", "⚡ Quick", "Claude Haiku · simple games · paid in pence"],
      ["better", "✨ Better", "Claude Sonnet · most games · paid in Pounds"],
-     ["best", "🏆 Best", INFO.priority ? "Claude Opus · big or tricky games" : "Claude Opus · helpers, admins and Verified only"]].forEach(function(t){
+     ["best", "🏆 Best", INFO.priority ? "Claude Opus · big or tricky games"
+        : OPUS_CHECK ? "Claude Opus · the safeguard checks your idea needs it" : "Claude Opus · helpers, admins and Verified only"]].forEach(function(t){
       var b = h("button", "tier"); b.type = "button"; b.setAttribute("data-t", t[0]);
       b.appendChild(h("b", null, t[1])); b.appendChild(h("span", "tp", "")); b.appendChild(h("small", null, t[2]));
-      if (t[0] === "best" && !INFO.priority) b.disabled = true;
+      if (t[0] === "best" && !INFO.priority && !OPUS_CHECK) b.disabled = true;
       b.onclick = function(){ TIER = t[0]; update(); };
       tg.appendChild(b);
     });
@@ -297,6 +303,9 @@ function drawMake(box, base){
     if (short) { msg.className = "msg err"; msg.textContent = TIERS && TIER === "quick"
       ? "You need " + (price - (INFO.pence || 0)) + "p more. You get 1p for every right answer in the learning games."
       : "You need " + (price - INFO.pounds) + " more Pounds. Earn them in the learning games (Level Up, Times Tables…) and from achievements."; }
+    if (!short && TIERS && TIER === "best" && OPUS_CHECK && !INFO.priority) {
+      msg.textContent = "🏆 The safeguard checks your idea really needs Opus. If Sonnet can build it just as well, Sonnet does and you only pay " + priceText("better") + ".";
+    }
     Array.prototype.forEach.call(c.querySelectorAll(".tier"), function(b){
       var t = b.getAttribute("data-t"); b.classList.toggle("on", t === TIER);
       b.querySelector(".tp").textContent = " " + priceText(t);
