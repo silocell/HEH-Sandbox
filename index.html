@@ -301,8 +301,8 @@ function drawMake(box, base){
     go.disabled = short || weekLeft < 1;
     msg.className = "msg"; msg.textContent = "";
     if (short) { msg.className = "msg err"; msg.textContent = TIERS && TIER === "quick"
-      ? "You need " + (price - (INFO.pence || 0)) + "p more. You get 1p for every right answer in the learning games."
-      : "You need " + (price - INFO.pounds) + " more Pounds. Earn them in the learning games (Level Up, Times Tables…) and from achievements."; }
+      ? "You need " + (price - (INFO.pence || 0)) + "p more. You get 1p for every right answer in HWL Learning."
+      : "You need " + (price - INFO.pounds) + " more Pounds. Earn them in HWL Learning (Level Up, Times Tables…) and from achievements."; }
     if (!short && TIERS && TIER === "best" && OPUS_CHECK && !INFO.priority) {
       msg.textContent = "🏆 The safeguard checks your idea really needs Opus. If Sonnet can build it just as well, Sonnet does and you only pay " + priceText("better") + ".";
     }
